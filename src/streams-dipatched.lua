@@ -50,7 +50,7 @@ stream_cons_mt.__index = {
         return S.tail:totable (tbl)
     end,
     take = function (S, n)
-        if n == 0 then return empty_stream else return cons (S.head, S.tail:take (n - 1)) end
+        if n == 0 then return empty_stream else return cons (S.head, susp (function () return S.tail:take (n - 1) end)) end
     end,
     map = function (S, f) return cons (f (S.head), S.tail:map (f)) end,
     zip = function (S, R, f) return R:zip_cons (S.tail, S.head, f) end,
@@ -72,7 +72,7 @@ stream_mt.__call = function (S) return S.promise () end
 stream_mt.__index = {
 
     totable = function (S, tbl) return S ():totable (tbl) end,
-    take = function (S, n) if n == 0 then return empty_stream else return S ():take (n) end end,
+    take = function (S, n) if n == 0 then return empty_stream else return susp (function () return S ():take (n) end) end end,
     map = function (S, f) return S ():map (f) end,
     zip = function (S, R, f) return S ():zip (R, f) end,
     zip_cons = function (S, tail, head, f) local R = S (); return R:zip_cons (tail, head, f) end,

@@ -93,7 +93,7 @@ local C = os.clock ()
 local ones = constant (1)
 
 local fibs
-fibs = cons (function () return 0, cons (function () local zero, F = fibs (); return zero + 1, fibs:zip (F, function (a, b) return a + b end) end) end)
+fibs = cons (function (F) return 0, cons (function (FF) return 1, F:zip (FF, op.add) end) end)
 
 -- print (ones.head)
 -- print (ones.tail ().head)
