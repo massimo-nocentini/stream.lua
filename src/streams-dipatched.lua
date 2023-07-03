@@ -49,18 +49,13 @@ stream_cons_mt.__index = {
         table.insert (tbl, S.head)
         return S.tail:totable (tbl)
     end,
-    take = function (S, n)
-        if n == 0 then return empty_stream else return cons (S.head, susp (function () return S.tail:take (n - 1) end)) end
-    end,
+    take = function (S, n) if n == 0 then return empty_stream else return cons (S.head, S.tail:take (n - 1)) end end,
     map = function (S, f) return cons (f (S.head), S.tail:map (f)) end,
     zip = function (S, R, f) return R:zip_cons (S.tail, S.head, f) end,
     zip_cons = function (S, tail, head, f) return cons (f (head, S.head), tail:zip (S.tail, f)) end,
-    at = function (S, i)
-        if i > 0 then return S.tail:at (i - 1) elseif i == 1 then return S.head else error 'negative index' end
-    end,
+    at = function (S, i) if i > 0 then return S.tail:at (i - 1) elseif i == 1 then return S.head else error 'negative index' end end,
     filter = function (S, p)
-        
-        local r, R = S.head, susp (function () return S.tail:filter (p) end)
+        local r, R = S.head, S.tail:filter (p)
         if p (r) then return cons (r, R) else return R end
     end
 }
@@ -72,12 +67,12 @@ stream_mt.__call = function (S) return S.promise () end
 stream_mt.__index = {
 
     totable = function (S, tbl) return S ():totable (tbl) end,
-    take = function (S, n) if n == 0 then return empty_stream else return susp (function () return S ():take (n) end) end end,
-    map = function (S, f) return S ():map (f) end,
-    zip = function (S, R, f) return S ():zip (R, f) end,
-    zip_cons = function (S, tail, head, f) local R = S (); return R:zip_cons (tail, head, f) end,
+    take = function (S, n) return susp (function () return S ():take (n) end) end,
+    map = function (S, f) return susp (function () return S ():map (f) end) end,
+    zip = function (S, R, f) return susp (function () return S ():zip (R, f) end) end,
+    zip_cons = function (S, tail, head, f) return susp (function () local R = S (); return R:zip_cons (tail, head, f) end) end,
     at = function (S, i) return S ():at (i) end,
-    filter = function (S, p) return S ():filter (p) end,
+    filter = function (S, p) return susp (function () return S ():filter (p) end) end,
 }
 
 local function iterate (f, v)
@@ -108,8 +103,7 @@ op.print_table (tbl)
 local nats = iterate (function (v) return v + 1 end, 0)
 op.print_table (nats:take(30):totable {})
 
-
-local S = from (4, -1):map (function (v) if v == 0 then error 'cannot divide by 0' else return 1 / v end end):take (4)
+-- local S = from (4, -1):map (function (v) if v == 0 then error 'cannot divide by 0' else return 1 / v end end):take (4)
 
 -- print (S.head)
 -- print (S.tail ().head)
@@ -117,7 +111,7 @@ local S = from (4, -1):map (function (v) if v == 0 then error 'cannot divide by 
 -- print (S.tail ().tail ().tail ().head)
 -- print (S:at (4))
 
-op.print_table (S:totable {})
+-- op.print_table (S:totable {})
 
 
 local fibs
@@ -129,17 +123,17 @@ op.print_table (tbl)
 
 op.print_table (fibs:take(30):totable {})
 
-print (fibs:at (30))
+--print (fibs:at (30))
 
 
 local function P (S)
 
    
-    local p, R = S ()
+    local p = S.head
     
     local function isntmultiple (n) return n % p > 0 end
 
-    return cons (function () return p, P (R:filter (isntmultiple)) end)
+    return cons (p, susp (function () return P (R:filter (isntmultiple)) end))
 end
 
 local primes = P (from (2, 1))

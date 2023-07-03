@@ -5,11 +5,17 @@ local stream_mt = {}
 
 local empty_stream = {}
 
+setmetatable (empty_stream, {
+    __index = {
+        totable = function (S, tbl) return tbl end,
+    }
+})
+
 local function isempty (S) return S == empty_stream end
 
 local function cons (h, t)
 
-    if t ~= empty_stream then t = op.memoize (t) end
+    if t then t = op.memoize (t) else t = empty_stream end
 
     local S = { head = h, tail = t }
     setmetatable (S, stream_mt)
@@ -17,32 +23,21 @@ local function cons (h, t)
     return S
 end
 
-stream_mt.__call = function (S) return S.tail (S) end
+stream_mt.__call = function (S, ...) return S.tail (S, ...) end
 
 stream_mt.__index = {
 
-    totable = function (S) 
-
-        local tbl = {}
-
-        while not isempty (S) do
-
-            table.insert (tbl, S.head)
-            S = S ()
-
-        end
-
-        return tbl
+    totable = function (S, tbl)
+        table.insert (tbl, S.head)
+        return S ():totable (tbl)
     end,
     take = function (S, n)
 
-        if n == 0 then 
-            return empty_stream 
-        else 
-            return cons (S.head, 
+        if n == 0 then return nil
+        else return cons (S.head, 
                          function () 
                             local m = n - 1
-                            if m == 0 then return empty_stream 
+                            if m == 0 then return empty_stream
                             else return S ():take (m) end
                          end) 
         end
@@ -66,11 +61,15 @@ stream_mt.__index = {
     end
 }
 
-local function iterate (f, v) return cons (v, function () return iterate (f, f (v)) end) end
+local function iterate (f)
+    return function (v)
+        return cons (v, function (S) return iterate (f) (f (S.head)) end) 
+    end 
+end
 
 local function constant (v) return cons (v, op.identity) end
 
-local function from (v, by) return cons (v, function () return from (v + by, by) end) end
+local function from (v, by) return cons (v, function (S) return from (S.head + by, by) end) end
 
 local C = os.clock ()
 
@@ -81,7 +80,7 @@ local fibs = cons (0, function (F) return cons (F.head + 1, function (FF) return
 print (ones.head)
 print (ones ().head)
 
-local tbl = ones:take (10):totable ()
+local tbl = ones:take (10):totable {}
 
 op.print_table (tbl)
 
@@ -95,28 +94,22 @@ print (S () () ().head)
 print (S:at (4))
 print '---'
 
-op.print_table (S:totable ())
+op.print_table (S:totable {})
 
-op.print_table (fibs:take(30):totable ())
+op.print_table (fibs:take(30):totable {})
 
 print (fibs:at (30))
 
-local nats = iterate (op.add_r (1), 0)
-op.print_table (nats:take(30):totable ())
+local nats = iterate (op.add_r (1)) (0)
+op.print_table (nats:take(30):totable {})
 
 
 local function P (S)
-
-   
-    local p = S.head
-    
-    local function isntmultiple (n) return n % p > 0 end
-
-    return cons (p, function () return P (S ():filter (isntmultiple)) end)
+    return cons (S.head, function (R) return P (S ():filter (function (n) return n % R.head > 0 end)) end)
 end
 
 local primes = P (from (2, 1))
 
-op.print_table (primes:take(500):totable ())
+op.print_table (primes:take(500):totable {})
 
 print ('seconds: ', os.clock () - C)
