@@ -23,6 +23,8 @@ local function cons (h, t)
     return S
 end
 
+local function conser (S) return function (v) return cons (v, S) end end
+
 stream_mt.__call = function (S, ...) return S.tail (S, ...) end
 
 stream_mt.__index = {
@@ -61,21 +63,18 @@ stream_mt.__index = {
     end
 }
 
-local function iterate (f)
-    return function (v)
-        return cons (v, function (S) return iterate (f) (f (S.head)) end) 
-    end 
-end
+local function zip_l (F, f) return function (FF) return F:zip (FF, f) end end
 
-local function constant (v) return cons (v, op.identity) end
-
-local function from (v, by) return cons (v, function (S) return from (S.head + by, by) end) end
+local function iterate (f) return function (S) return cons (f (S.head), iterate (f)) end end
+local function constant () return op.identity end
+local function from (by) return (function (S) return cons (S.head + by, from (by)) end) end
+local function gibs (start, by) return cons (start, function (F) return cons (F.head + by, zip_l (F, op.add)) end) end
 
 local C = os.clock ()
 
-local ones = constant (1)
+local ones = cons (1, constant ())
 
-local fibs = cons (0, function (F) return cons (F.head + 1, function (FF) return F:zip (FF, op.add) end) end)
+local fibs = gibs (0, 1)
 
 print (ones.head)
 print (ones ().head)
@@ -84,7 +83,7 @@ local tbl = ones:take (10):totable {}
 
 op.print_table (tbl)
 
-local S = from (4, -1):map (function (v) if v == 0 then error 'cannot divide by 0' else return 1 / v end end):take (4)
+local S = cons (4, from (-1)):map (function (v) if v == 0 then error 'cannot divide by 0' else return 1 / v end end):take (4)
 
 print '---'
 print (S.head)
@@ -100,15 +99,16 @@ op.print_table (fibs:take(30):totable {})
 
 print (fibs:at (30))
 
-local nats = iterate (op.add_r (1)) (0)
+local nats = cons (0, iterate (op.add_r (1)))
 op.print_table (nats:take(30):totable {})
 
 
-local function P (S)
-    return cons (S.head, function (R) return P (S ():filter (function (n) return n % R.head > 0 end)) end)
+local function sieve (S)
+    local P = function (R) return sieve (S ():filter (function (n) return n % R.head > 0 end)) end
+    return cons (S.head, P)
 end
 
-local primes = P (from (2, 1))
+local primes = sieve (cons (2, from (1)))
 
 op.print_table (primes:take(500):totable {})
 
