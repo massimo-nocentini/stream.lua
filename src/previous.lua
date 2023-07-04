@@ -23,9 +23,7 @@ local function cons (h, t)
     return S
 end
 
-local function conser (S) return function (v) return cons (v, S) end end
-
-stream_mt.__call = function (S, ...) return S.tail (S, ...) end
+stream_mt.__call = function (S, n, ...) for i = 1, n or 1 do S = S.tail (S, ...) end return S end
 
 stream_mt.__index = {
 
@@ -46,15 +44,7 @@ stream_mt.__index = {
     end,
     map = function (S, f) return cons (f (S.head), function () return S ():map (f) end) end,
     zip = function (S, R, f) return cons (f (S.head, R.head), function () return S ():zip (R (), f) end) end,
-    at = function (S, i)
-
-        while i > 1 do 
-            S = S ()
-            i = i - 1
-        end
-
-        return S.head
-    end,
+    at = function (S, i) return S (i - 1).head end,
     filter = function (S, p)
         local v = S.head
         if p (v) then return cons (v, function () return S ():filter (p) end)
@@ -65,16 +55,16 @@ stream_mt.__index = {
 
 local function zip_l (F, f) return function (FF) return F:zip (FF, f) end end
 
-local function iterate (f) return function (S) return cons (f (S.head), iterate (f)) end end
 local function constant () return op.identity end
-local function from (by) return (function (S) return cons (S.head + by, from (by)) end) end
-local function gibs (start, by) return cons (start, function (F) return cons (F.head + by, zip_l (F, op.add)) end) end
+local function iterate (f) return function (S) return cons (f (S.head), iterate (f)) end end
+local function from (by) return function (S) return cons (S.head + by, from (by)) end end
+local function gibs (by) return function (F) return cons (F.head + by, zip_l (F, op.add)) end end
 
 local C = os.clock ()
 
 local ones = cons (1, constant ())
 
-local fibs = gibs (0, 1)
+local fibs = cons (0, gibs (1))
 
 print (ones.head)
 print (ones ().head)
