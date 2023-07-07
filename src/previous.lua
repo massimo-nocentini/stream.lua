@@ -3,8 +3,6 @@ local op = require 'operator'
 
 local stream = {}
 
-local stream_mt = {}
-
 local empty_stream = {}
 
 setmetatable (empty_stream, {
@@ -14,7 +12,11 @@ setmetatable (empty_stream, {
     }
 })
 
-local function cons (h, t)
+stream.empty = function () return empty_stream end
+
+local stream_mt = {}
+
+function stream.cons (h, t)
 
     if t then t = op.memoize (t) else t = empty_stream end
 
@@ -55,59 +57,13 @@ stream_mt.__index = {
     end
 }
 
-local function zip_l (F, f) return function (FF) return F:zip (FF, f) end end
+local function stream.zip_l (F, f) return function (FF) return F:zip (FF, f) end end
 
-local function constant () return op.identity end
-local function iterate (f) return function (S) return cons (f (S.head), iterate (f)) end end
-local function from (by) return function (S) return cons (S.head + by, from (by)) end end
-local function gibs (by) return function (F) return cons (F.head + by, zip_l (F, op.add)) end end
-
-local C = os.clock ()
-
-local ones = cons (1, constant ())
-
-local fibs = cons (0, gibs (1))
-
-print (ones.head)
-print (ones ().head)
-
-local tbl = ones:take (10):totable {}
-
-op.print_table (tbl)
-
-local S = cons (4, from (-1)):map (function (v) if v == 0 then error 'cannot divide by 0' else return 1 / v end end):take (4)
-
-print '---'
-print (S.head)
-print (S ().head)
-print (S () ().head)
-print (S () () ().head)
-print (S:at (4))
-print '---'
-
-op.print_table (S:totable {})
-
-op.print_table (fibs:take(30):totable {})
-
-print (fibs:at (30))
-
-local nats = cons (0, iterate (op.add_r (1)))
-op.print_table (nats:take(30):totable {})
+local function stream.constant () return op.identity end
+local function stream.iterate (f) return function (S) return stream.cons (f (S.head), stream.iterate (f)) end end
+local function stream.from (by) return function (S) return stream.cons (S.head + by, stream.from (by)) end end
+local function stream.gibs (by) return function (F) return stream.cons (F.head + by, stream.zip_l (F, op.add)) end end
 
 
-local function sieve (S)
-    local P = function (R) return sieve (S ():filter (function (n) return n % R.head > 0 end)) end
-    return cons (S.head, P)
-end
-
-local primes = sieve (cons (2, from (1)))
-
-op.print_table (primes:take(500):totable {})
-
-print ('seconds: ', os.clock () - C)
-
--- Finally, populate the `stream` module.
-stream.cons = cons
-stream.empty = function () return empty_stream end
 
 return stream
