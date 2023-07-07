@@ -642,6 +642,6 @@ local C = os.clock ()
 
 local ret = lu.LuaUnit.run()
 
-print ('seconds: ', os.clock () - C)
+print ('Elapsed seconds: ', os.clock () - C)
 
 os.exit(ret)
