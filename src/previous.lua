@@ -1,6 +1,8 @@
 
 local op = require 'operator'
 
+local stream = {}
+
 local stream_mt = {}
 
 local empty_stream = {}
@@ -8,10 +10,9 @@ local empty_stream = {}
 setmetatable (empty_stream, {
     __index = {
         totable = function (S, tbl) return tbl end,
+        isempty = function (S) return true end,
     }
 })
-
-local function isempty (S) return S == empty_stream end
 
 local function cons (h, t)
 
@@ -27,6 +28,7 @@ stream_mt.__call = function (S, n, ...) for i = 1, n or 1 do S = S.tail (S, ...)
 
 stream_mt.__index = {
 
+    isempty = function (S) return false end,
     totable = function (S, tbl)
         table.insert (tbl, S.head)
         return S ():totable (tbl)
@@ -103,3 +105,9 @@ local primes = sieve (cons (2, from (1)))
 op.print_table (primes:take(500):totable {})
 
 print ('seconds: ', os.clock () - C)
+
+-- Finally, populate the `stream` module.
+stream.cons = cons
+stream.empty = function () return empty_stream end
+
+return stream
